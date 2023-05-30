@@ -19,7 +19,7 @@ config_path = os.path.join(
 )
 if len(sys.argv) > 1:
     config_path = sys.argv[1]
-
+z
 
 ai = AI(World())
 
