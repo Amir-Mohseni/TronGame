@@ -13,14 +13,14 @@
 
 	"net": {
 		"host": "0.0.0.0",
-		"port": 5000,
+		"port": 8000,
 		"keyfile": "certs/key.pem",
 		"certfile": "certs/cert.pem"
 	},
 
 	"gui": {
 		"host": "0.0.0.0",
-		"port": 5001,
+		"port": 8001,
 		"max_spectators": 3,
 		"save_replay": true,
 		"replay_dir": "replays",
