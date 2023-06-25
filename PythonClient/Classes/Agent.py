@@ -1,8 +1,5 @@
-from PythonClient.ks.models import Constants
-
-
-class Agent:
-    def __init__(self, health, position, direction, wall_breaker_cooldown, wall_breaker_rem_time, score, color):
+class Agents:
+    def __init__(self, health, position, direction, wall_breaker_cooldown, wall_breaker_rem_time, score, color, constants):
         self.health = health
         self.position = position
         self.direction = direction
@@ -10,17 +7,18 @@ class Agent:
         self.wall_breaker_rem_time = wall_breaker_rem_time
         self.score = score
         self.color = color
+        self.constants = constants
 
     def decrease_health(self):
         self.health -= 1
 
-    def change_position(self, d_x, d_y):
-        self.position.x += d_x
-        self.position.y += d_y
+    def change_position(self, d):
+        self.position.x += d[0]
+        self.position.y += d[1]
 
     def activate_wall_breaker(self):
         if not self.wall_breaker_is_on() and self.wall_breaker_cooldown == 0:
-            self.wall_breaker_rem_time = Constants.wall_breaker_duration
+            self.wall_breaker_rem_time = self.constants.wall_breaker_duration
 
     def change_direction(self, new_direction):
         self.direction = new_direction
