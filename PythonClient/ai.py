@@ -4,8 +4,8 @@
 import random
 import copy
 
-from Classes.Agent import Agents
-from Classes.World import Worlds
+from Classes.Agents import Agents
+from Classes.Worlds import Worlds
 from ks.models import *
 
 # chillin imports
@@ -34,26 +34,31 @@ class AI(RealtimeAI):
         # if self.world.agents[self.my_side].wall_breaker_cooldown == 0:
         #     self.send_command(ActivateWallBreaker())
 
-    def get_next_nodes(self, current_world, neighbors, move_list, depth):
+    def get_next_nodes(self, current_world, neighbors, wallbreaker, move_list, depth):
         best_answer = MN, []
 
         for move in neighbors:
             new_world = copy.deepcopy(current_world)
 
             # Change Direction
-            new_world.change_board(new_world.my_side, new_world.other_side, move)
+            new_world.change_board(new_world.my_side, new_world.other_side, [move, wallbreaker])
             new_world.change_sides()
             new_move_list = copy.deepcopy(move_list)
-            new_move_list.append(move)
+            new_move_list.append([move, wallbreaker])
             ret = self.minimax(new_world, new_move_list, depth + 1)
-            if ret[0] > best_answer[0]:
-                best_answer = ret
+            if ret[0] * -1 > best_answer[0]:
+                best_answer = ret[0] * -1, ret[1]
         return best_answer
 
     def minimax(self, current_world, move_list, depth):
         if depth == 6:
             return current_world.score_difference(current_world.my_side, current_world.other_side), move_list
-
+        if current_world.is_game_finished():
+            return current_world.score_difference(current_world.my_side, current_world.other_side), move_list
+        if depth % 2 == 0 and current_world.get_our_agent_position() == current_world.get_enemy_agent_position():
+            current_world.scores["Blue"] -= current_world.agents["Blue"].health * 150
+            current_world.scores["Yellow"] -= current_world.agents["Yellow"].health * 150
+            return current_world.score_difference(current_world.my_side, current_world.other_side), move_list
         my_team = current_world.my_side
         my_enemy = current_world.other_side
         empty_neighbors = current_world.get_our_agent_empty_neighbors()
@@ -67,51 +72,49 @@ class AI(RealtimeAI):
             # wall breaker is on
 
             if my_team == "Yellow":
-                if blue_walls:
-                    best_answer = self.get_next_nodes(current_world, blue_walls, move_list, depth)
+                if current_world.agents[my_team].wall_breaker_rem_time > 1 and blue_walls:
+                    best_answer = self.get_next_nodes(current_world, blue_walls, False, move_list, depth)
                 elif empty_neighbors:
-                    best_answer = self.get_next_nodes(current_world, empty_neighbors, move_list, depth)
+                    best_answer = self.get_next_nodes(current_world, empty_neighbors, False, move_list, depth)
                 elif yellow_walls:
-                    best_answer = self.get_next_nodes(current_world, yellow_walls, move_list, depth)
+                    best_answer = self.get_next_nodes(current_world, yellow_walls, False, move_list, depth)
                 else:
-                    self.send_command(ChangeDirection(random.choice(list(EDirection))))
+                    print('Error')
             else:
-                if yellow_walls:
-                    best_answer = self.get_next_nodes(current_world, yellow_walls, move_list, depth)
+                if current_world.agents[my_team].wall_breaker_rem_time > 1 and yellow_walls:
+                    best_answer = self.get_next_nodes(current_world, yellow_walls, False, move_list, depth)
                 elif empty_neighbors:
-                    best_answer = self.get_next_nodes(current_world, empty_neighbors, move_list, depth)
+                    best_answer = self.get_next_nodes(current_world, empty_neighbors, False, move_list, depth)
                 elif blue_walls:
-                    best_answer = self.get_next_nodes(current_world, blue_walls, move_list, depth)
+                    best_answer = self.get_next_nodes(current_world, blue_walls, False, move_list, depth)
                 else:
-                    self.send_command(ChangeDirection(random.choice(list(EDirection))))
+                    print('Error')
 
         else:
             # wall breaker is off
             if empty_neighbors:
-                best_answer = self.get_next_nodes(current_world, empty_neighbors, move_list, depth)
+                best_answer = self.get_next_nodes(current_world, empty_neighbors, False, move_list, depth)
             else:
                 if current_world.agents[my_team].wall_breaker_cooldown == 0 and not (
                         current_world.agents[my_team].direction in area_walls):
                     only_move = [current_world.agents[my_team].direction]
-                    current_world.agents[my_team].activate_wall_breaker()
-                    best_answer = self.get_next_nodes(current_world, only_move, move_list, depth)
+                    best_answer = self.get_next_nodes(current_world, only_move, True, move_list, depth)
                 else:
                     if my_team == "Yellow":
                         if blue_walls:
-                            best_answer = self.get_next_nodes(current_world, blue_walls, move_list, depth)
+                            best_answer = self.get_next_nodes(current_world, blue_walls, False, move_list, depth)
                         elif yellow_walls:
-                            best_answer = self.get_next_nodes(current_world, yellow_walls, move_list, depth)
+                            best_answer = self.get_next_nodes(current_world, yellow_walls, False, move_list, depth)
                         else:
-                            self.send_command(ChangeDirection(random.choice(list(EDirection))))
+                            print('Error')
                     else:
                         if yellow_walls:
-                            best_answer = self.get_next_nodes(current_world, yellow_walls, move_list, depth)
+                            best_answer = self.get_next_nodes(current_world, yellow_walls, False, move_list, depth)
                         elif blue_walls:
-                            best_answer = self.get_next_nodes(current_world, blue_walls, move_list, depth)
+                            best_answer = self.get_next_nodes(current_world, blue_walls, False, move_list, depth)
                         else:
-                            self.send_command(ChangeDirection(random.choice(list(EDirection))))
+                            print('Error')
         return best_answer
-
 
     def update_world_and_agents(self):
         temp_our_agent = self.world.agents[self.my_side]
@@ -132,17 +135,20 @@ class AI(RealtimeAI):
         return start_world
 
     def client1(self):
-#        my_team = self.my_side
+        #        my_team = self.my_side
 
         start_world = self.update_world_and_agents()
 
-#        empty_neighbors = start_world.get_our_agent_empty_neighbors()
-#        blue_walls = start_world.get_our_agent_blue_wall_neighbors()
-#        yellow_walls = start_world.get_our_agent_yellow_wall_neighbors()
-#        area_walls = start_world.get_our_agent_Area_wall_neighbors()
+        #        empty_neighbors = start_world.get_our_agent_empty_neighbors()
+        #        blue_walls = start_world.get_our_agent_blue_wall_neighbors()
+        #        yellow_walls = start_world.get_our_agent_yellow_wall_neighbors()
+        #        area_walls = start_world.get_our_agent_Area_wall_neighbors()
 
         result = self.minimax(start_world, [], 0)
-        self.send_command(ChangeDirection(result[1][0]))
+        if not result[1][0][1]:
+            self.send_command(ChangeDirection(result[1][0][0]))
+        else:
+            self.send_command(ActivateWallBreaker())
 
     """
         if self.world.agents[self.my_side].wall_breaker_rem_time > 1:
