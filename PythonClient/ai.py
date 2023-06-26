@@ -70,50 +70,66 @@ class AI(RealtimeAI):
 
         if current_world.agents[my_team].wall_breaker_is_on():
             # wall breaker is on
-
+            ret = MN, move_list
             if my_team == "Yellow":
                 if current_world.agents[my_team].wall_breaker_rem_time > 1 and blue_walls:
-                    best_answer = self.get_next_nodes(current_world, blue_walls, False, move_list, depth)
-                elif empty_neighbors:
-                    best_answer = self.get_next_nodes(current_world, empty_neighbors, False, move_list, depth)
-                elif yellow_walls:
-                    best_answer = self.get_next_nodes(current_world, yellow_walls, False, move_list, depth)
-                else:
-                    print('Error')
+                    ret = self.get_next_nodes(current_world, blue_walls, False, move_list, depth)
+                    if ret[0] > best_answer[0]:
+                        best_answer = ret
+                if empty_neighbors:
+                    ret = self.get_next_nodes(current_world, empty_neighbors, False, move_list, depth)
+                    if ret[0] > best_answer[0]:
+                        best_answer = ret
+                if yellow_walls:
+                    ret = self.get_next_nodes(current_world, yellow_walls, False, move_list, depth)
+                    if ret[0] > best_answer[0]:
+                        best_answer = ret
             else:
                 if current_world.agents[my_team].wall_breaker_rem_time > 1 and yellow_walls:
-                    best_answer = self.get_next_nodes(current_world, yellow_walls, False, move_list, depth)
+                    ret = self.get_next_nodes(current_world, yellow_walls, False, move_list, depth)
+                    if ret[0] > best_answer[0]:
+                        best_answer = ret
                 elif empty_neighbors:
-                    best_answer = self.get_next_nodes(current_world, empty_neighbors, False, move_list, depth)
+                    ret = self.get_next_nodes(current_world, empty_neighbors, False, move_list, depth)
+                    if ret[0] > best_answer[0]:
+                        best_answer = ret
                 elif blue_walls:
-                    best_answer = self.get_next_nodes(current_world, blue_walls, False, move_list, depth)
-                else:
-                    print('Error')
+                    ret = self.get_next_nodes(current_world, blue_walls, False, move_list, depth)
+                    if ret[0] > best_answer[0]:
+                        best_answer = ret
 
         else:
             # wall breaker is off
             if empty_neighbors:
-                best_answer = self.get_next_nodes(current_world, empty_neighbors, False, move_list, depth)
+                ret = self.get_next_nodes(current_world, empty_neighbors, False, move_list, depth)
+                if ret[0] > best_answer[0]:
+                    best_answer = ret
             else:
                 if current_world.agents[my_team].wall_breaker_cooldown == 0 and not (
                         current_world.agents[my_team].direction in area_walls):
                     only_move = [current_world.agents[my_team].direction]
-                    best_answer = self.get_next_nodes(current_world, only_move, True, move_list, depth)
+                    ret = self.get_next_nodes(current_world, only_move, True, move_list, depth)
+                    if ret[0] > best_answer[0]:
+                        best_answer = ret
                 else:
                     if my_team == "Yellow":
                         if blue_walls:
-                            best_answer = self.get_next_nodes(current_world, blue_walls, False, move_list, depth)
-                        elif yellow_walls:
-                            best_answer = self.get_next_nodes(current_world, yellow_walls, False, move_list, depth)
-                        else:
-                            print('Error')
+                            ret = self.get_next_nodes(current_world, blue_walls, False, move_list, depth)
+                            if ret[0] > best_answer[0]:
+                                best_answer = ret
+                        if yellow_walls:
+                            ret = self.get_next_nodes(current_world, yellow_walls, False, move_list, depth)
+                            if ret[0] > best_answer[0]:
+                                best_answer = ret
                     else:
                         if yellow_walls:
-                            best_answer = self.get_next_nodes(current_world, yellow_walls, False, move_list, depth)
-                        elif blue_walls:
-                            best_answer = self.get_next_nodes(current_world, blue_walls, False, move_list, depth)
-                        else:
-                            print('Error')
+                            ret = self.get_next_nodes(current_world, yellow_walls, False, move_list, depth)
+                            if ret[0] > best_answer[0]:
+                                best_answer = ret
+                        if blue_walls:
+                            ret = self.get_next_nodes(current_world, blue_walls, False, move_list, depth)
+                            if ret[0] > best_answer[0]:
+                                best_answer = ret
         return best_answer
 
     def update_world_and_agents(self):

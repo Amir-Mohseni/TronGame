@@ -98,11 +98,20 @@ class Worlds:
         result_score = self.agents[my_side].score - self.agents[enemy_side].score
         return result_score
 
+    def get_blue_yellow_score_difference(self):
+        return self.agents["Blue"].score - self.agents["Yellow"].score
+
     def get_our_agent_position(self):
         return self.agents[self.my_side].position
 
+    def get_our_agent_direction(self):
+        return self.agents[self.my_side].direction
+
     def get_enemy_agent_position(self):
         return self.agents[self.other_side].position
+
+    def get_enemy_agent_direction(self):
+        return self.agents[self.other_side].direction
 
     def get_our_agent_empty_neighbors(self):
         empty_neighbors = []
@@ -111,17 +120,17 @@ class Worlds:
 
         their_position = self.get_enemy_agent_position()
 
-        if our_position.x + 1 < len(self.board[0]):
-            if self.board[our_position.y][our_position.x + 1] == ECell.Empty:
+        if our_position.x + 1 < len(self.board[0]) and EDirection.Left != self.get_our_agent_direction():
+            if self.board[our_position.y][our_position.x + 1] == ECell.Empty and EDirection.Left != self.get_our_agent_direction():
                 empty_neighbors.append(EDirection.Right)
         if our_position.x - 1 >= 0:
-            if self.board[our_position.y][our_position.x - 1] == ECell.Empty:
+            if self.board[our_position.y][our_position.x - 1] == ECell.Empty and EDirection.Right != self.get_our_agent_direction():
                 empty_neighbors.append(EDirection.Left)
         if our_position.y + 1 < len(self.board):
-            if self.board[our_position.y + 1][our_position.x] == ECell.Empty:
+            if self.board[our_position.y + 1][our_position.x] == ECell.Empty and EDirection.Up != self.get_our_agent_direction():
                 empty_neighbors.append(EDirection.Down)
         if our_position.y - 1 >= 0:
-            if self.board[our_position.y - 1][our_position.x] == ECell.Empty:
+            if self.board[our_position.y - 1][our_position.x] == ECell.Empty and EDirection.Down != self.get_our_agent_direction():
                 empty_neighbors.append(EDirection.Up)
         return empty_neighbors
     def get_our_agent_blue_wall_neighbors(self):
@@ -131,16 +140,16 @@ class Worlds:
         their_position = self.get_enemy_agent_position()
 
         if our_position.x + 1 < len(self.board[0]):
-            if self.board[our_position.y][our_position.x + 1] == ECell.BlueWall:
+            if self.board[our_position.y][our_position.x + 1] == ECell.BlueWall and EDirection.Left != self.get_our_agent_direction():
                 blue_walls.append(EDirection.Right)
         if our_position.x - 1 >= 0:
-            if self.board[our_position.y][our_position.x - 1] == ECell.BlueWall:
+            if self.board[our_position.y][our_position.x - 1] == ECell.BlueWall and EDirection.Right != self.get_our_agent_direction():
                 blue_walls.append(EDirection.Left)
         if our_position.y + 1 < len(self.board):
-            if self.board[our_position.y + 1][our_position.x] == ECell.BlueWall:
+            if self.board[our_position.y + 1][our_position.x] == ECell.BlueWall and EDirection.Up != self.get_our_agent_direction():
                 blue_walls.append(EDirection.Down)
         if our_position.y - 1 >= 0:
-            if self.board[our_position.y - 1][our_position.x] == ECell.BlueWall:
+            if self.board[our_position.y - 1][our_position.x] == ECell.BlueWall and EDirection.Down != self.get_our_agent_direction():
                 blue_walls.append(EDirection.Up)
         return blue_walls
 
@@ -152,16 +161,16 @@ class Worlds:
         their_position = self.get_enemy_agent_position()
 
         if our_position.x + 1 < len(self.board[0]):
-            if self.board[our_position.y][our_position.x + 1] == ECell.AreaWall:
+            if self.board[our_position.y][our_position.x + 1] == ECell.AreaWall and EDirection.Left != self.get_our_agent_direction():
                 area_walls.append(EDirection.Right)
         if our_position.x - 1 >= 0:
-            if self.board[our_position.y][our_position.x - 1] == ECell.AreaWall:
+            if self.board[our_position.y][our_position.x - 1] == ECell.AreaWall and EDirection.Right != self.get_our_agent_direction():
                 area_walls.append(EDirection.Left)
         if our_position.y + 1 < len(self.board):
-            if self.board[our_position.y + 1][our_position.x] == ECell.AreaWall:
+            if self.board[our_position.y + 1][our_position.x] == ECell.AreaWall and EDirection.Up != self.get_our_agent_direction():
                 area_walls.append(EDirection.Down)
         if our_position.y - 1 >= 0:
-            if self.board[our_position.y - 1][our_position.x] == ECell.AreaWall:
+            if self.board[our_position.y - 1][our_position.x] == ECell.AreaWall and EDirection.Down != self.get_our_agent_direction():
                 area_walls.append(EDirection.Up)
         return area_walls
 
@@ -173,15 +182,15 @@ class Worlds:
         their_position = self.get_enemy_agent_position()
 
         if our_position.x + 1 < len(self.board[0]):
-            if self.board[our_position.y][our_position.x + 1] == ECell.YellowWall:
+            if self.board[our_position.y][our_position.x + 1] == ECell.YellowWall and EDirection.Left != self.get_our_agent_direction():
                 yellow_walls.append(EDirection.Right)
         if our_position.x - 1 >= 0:
-            if self.board[our_position.y][our_position.x - 1] == ECell.YellowWall:
+            if self.board[our_position.y][our_position.x - 1] == ECell.YellowWall and EDirection.Right != self.get_our_agent_direction():
                 yellow_walls.append(EDirection.Left)
         if our_position.y + 1 < len(self.board):
-            if self.board[our_position.y + 1][our_position.x] == ECell.YellowWall:
+            if self.board[our_position.y + 1][our_position.x] == ECell.YellowWall and EDirection.Up != self.get_our_agent_direction():
                 yellow_walls.append(EDirection.Down)
         if our_position.y - 1 >= 0:
-            if self.board[our_position.y - 1][our_position.x] == ECell.YellowWall:
+            if self.board[our_position.y - 1][our_position.x] == ECell.YellowWall and EDirection.Down != self.get_our_agent_direction():
                 yellow_walls.append(EDirection.Up)
         return yellow_walls
