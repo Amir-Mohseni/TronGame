@@ -3,6 +3,7 @@
 # python imports
 import random
 import copy
+from operator import indexOf
 
 from Classes.Agents import Agents
 from Classes.Worlds import Worlds
@@ -19,6 +20,138 @@ MN = -10000
 MX = +10000
 
 
+def get_d_cords(dir_to_take):
+    if dir_to_take == EDirection.Left:
+        return -1, 0
+    elif dir_to_take == EDirection.Right:
+        return 1, 0
+    elif dir_to_take == EDirection.Up:
+        return 0, -1
+    elif dir_to_take == EDirection.Down:
+        return 0, 1
+
+
+def reproduction(move_list1, move_list2):
+    idx = random.randint(0, len(move_list1))
+    return move_list1[:idx] + move_list2[idx:]
+
+
+def invert_move(move):
+    if move == EDirection.Up:
+        return EDirection.Down
+    if move == EDirection.Down:
+        return EDirection.Up
+    if move == EDirection.Left:
+        return EDirection.Right
+    if move == EDirection.Right:
+        return EDirection.Left
+
+
+def get_new_pos(cur_pos, d):
+    return cur_pos[0] + d[0], cur_pos[1] + d[1]
+
+
+def mutation(move_list):
+    mutation_rate = 0.1
+    for i in range(len(move_list)):
+        if random.random() < mutation_rate:
+            move_list[i] = random.randint(0, 4)
+    return move_list
+
+
+def get_move_options(cur_world, side, enemy_side):
+    move_options = []
+    cur_agent = cur_world.agents[side]
+    enemy_agent = cur_world.agents[enemy_side]
+    cur_pos = cur_agent.position.x, cur_agent.position.y
+    enemy_pos = enemy_agent.position.x, enemy_agent.position.y
+    for move_option in [EDirection.Left, EDirection.Down, EDirection.Right, EDirection.Up]:
+        new_pos = get_new_pos(cur_pos, get_d_cords(move_option))
+        if invert_move(cur_agent.direction) != move_option and 0 <= new_pos[0] < len(cur_world.board[0]) and 0 <= \
+                new_pos[
+                    1] < len(cur_world.board) and new_pos != enemy_pos:
+            move_options.append([move_option, False])
+        if cur_agent.direction != move_option and 0 <= new_pos[0] < len(cur_world.board[0]) and 0 <= new_pos[
+            1] < len(
+            cur_world.board) and new_pos != enemy_pos and not cur_agent.wall_breaker_is_on() and cur_agent.wall_breaker_cooldown == 0:
+            move_options.append([move_option, True])
+    return move_options
+
+
+def fitness(move_list, start_world):
+    best_score_dif = 10000
+    n = len(move_list)
+    for way in range(int(pow(4, n))):
+        this_score = 0
+        other_move_list = []
+        num = way
+        for i in range(n):
+            other_move_list.append(num % 4)
+            num //= 4
+        cur_world = copy.deepcopy(start_world)
+        for i in range(n):
+            move_options = get_move_options(cur_world, cur_world.my_side, cur_world.other_side)
+            if move_list[i] >= len(move_options):
+                break
+            cur_world.change_board(cur_world.my_side, cur_world.other_side, move_options[move_list[i]])
+            if cur_world.is_game_finished():
+                this_score = cur_world.score_difference(cur_world.my_side, cur_world.other_side)
+                break
+            other_move_options = get_move_options(cur_world, cur_world.other_side, cur_world.my_side)
+            if other_move_list[i] >= len(other_move_options):
+                break
+            cur_world.change_board(cur_world.other_side, cur_world.my_side, other_move_options[other_move_list[i]])
+            if cur_world.is_game_finished():
+                this_score = cur_world.score_difference(cur_world.my_side, cur_world.other_side)
+                break
+            if i == n - 1:
+                this_score = cur_world.score_difference(cur_world.my_side, cur_world.other_side)
+                break
+        best_score_dif = min(best_score_dif, this_score)
+    return best_score_dif
+
+
+def genetics(start_world, number_of_generations, number_of_chromosomes, prediction_number):
+    chromosomes = []
+    for i in range(number_of_chromosomes):
+        chromosome = []
+        for j in range(prediction_number):
+            chromosome.append(random.randint(0, 3))
+        chromosomes.append(chromosome)
+    for gen_num in range(number_of_generations):
+        new_population = []
+        sorted_population = []
+        probabilities = []
+        for chromosome in chromosomes:
+            f = fitness(chromosome, start_world)
+            probabilities.append(f)
+            sorted_population.append([f, chromosome])
+
+        sorted_population.sort(reverse=True)
+
+        new_population.append(sorted_population[0][1])  # the best gen
+        new_population.append(sorted_population[-1][1])  # the worst gen
+
+        for i in range((len(chromosomes) - 2)):
+            chromosome_1, chromosome_2 = random.choices(chromosomes, weights=probabilities, k=2)
+
+            # Creating two new chromosomes from 2 chromosomes
+            child = reproduction(chromosome_1, chromosome_2)
+            mutation(child)
+
+            new_population.append(child)
+        chromosomes = new_population
+
+    fitnessOfChromosomes = [fitness(chrom) for chrom in chromosomes]
+
+    bestChromosomes = chromosomes[
+        indexOf(fitnessOfChromosomes, max(fitnessOfChromosomes))
+    ]
+
+    move_option = get_move_options(start_world, start_world.my_side, start_world.other_side)
+    return move_option[bestChromosomes[0]]
+
+
 class AI(RealtimeAI):
 
     def __init__(self, world):
@@ -30,107 +163,6 @@ class AI(RealtimeAI):
     def decide(self):
         print('decide')
         self.client1()
-        # self.send_command(ChangeDirection(random.choice(list(EDirection))))
-        # if self.world.agents[self.my_side].wall_breaker_cooldown == 0:
-        #     self.send_command(ActivateWallBreaker())
-
-    def get_next_nodes(self, current_world, neighbors, wallbreaker, move_list, depth):
-        best_answer = MN, []
-
-        for move in neighbors:
-            new_world = copy.deepcopy(current_world)
-
-            # Change Direction
-            new_world.change_board(new_world.my_side, new_world.other_side, [move, wallbreaker])
-            new_world.change_sides()
-            new_move_list = copy.deepcopy(move_list)
-            new_move_list.append([move, wallbreaker])
-            ret = self.minimax(new_world, new_move_list, depth + 1)
-            if ret[0] * -1 > best_answer[0]:
-                best_answer = ret[0] * -1, ret[1]
-        return best_answer
-
-    def minimax(self, current_world, move_list, depth):
-        if depth == 6:
-            return current_world.score_difference(current_world.my_side, current_world.other_side), move_list
-        if current_world.is_game_finished():
-            return current_world.score_difference(current_world.my_side, current_world.other_side), move_list
-        if depth % 2 == 0 and current_world.get_our_agent_position() == current_world.get_enemy_agent_position():
-            current_world.scores["Blue"] -= current_world.agents["Blue"].health * 150
-            current_world.scores["Yellow"] -= current_world.agents["Yellow"].health * 150
-            return current_world.score_difference(current_world.my_side, current_world.other_side), move_list
-        my_team = current_world.my_side
-        my_enemy = current_world.other_side
-        empty_neighbors = current_world.get_our_agent_empty_neighbors()
-        blue_walls = current_world.get_our_agent_blue_wall_neighbors()
-        yellow_walls = current_world.get_our_agent_yellow_wall_neighbors()
-        area_walls = current_world.get_our_agent_Area_wall_neighbors()
-
-        best_answer = MN, move_list
-
-        if current_world.agents[my_team].wall_breaker_is_on():
-            # wall breaker is on
-            ret = MN, move_list
-            if my_team == "Yellow":
-                if current_world.agents[my_team].wall_breaker_rem_time > 1 and blue_walls:
-                    ret = self.get_next_nodes(current_world, blue_walls, False, move_list, depth)
-                    if ret[0] > best_answer[0]:
-                        best_answer = ret
-                if empty_neighbors:
-                    ret = self.get_next_nodes(current_world, empty_neighbors, False, move_list, depth)
-                    if ret[0] > best_answer[0]:
-                        best_answer = ret
-                if yellow_walls:
-                    ret = self.get_next_nodes(current_world, yellow_walls, False, move_list, depth)
-                    if ret[0] > best_answer[0]:
-                        best_answer = ret
-            else:
-                if current_world.agents[my_team].wall_breaker_rem_time > 1 and yellow_walls:
-                    ret = self.get_next_nodes(current_world, yellow_walls, False, move_list, depth)
-                    if ret[0] > best_answer[0]:
-                        best_answer = ret
-                elif empty_neighbors:
-                    ret = self.get_next_nodes(current_world, empty_neighbors, False, move_list, depth)
-                    if ret[0] > best_answer[0]:
-                        best_answer = ret
-                elif blue_walls:
-                    ret = self.get_next_nodes(current_world, blue_walls, False, move_list, depth)
-                    if ret[0] > best_answer[0]:
-                        best_answer = ret
-
-        else:
-            # wall breaker is off
-            if empty_neighbors:
-                ret = self.get_next_nodes(current_world, empty_neighbors, False, move_list, depth)
-                if ret[0] > best_answer[0]:
-                    best_answer = ret
-            else:
-                if current_world.agents[my_team].wall_breaker_cooldown == 0 and not (
-                        current_world.agents[my_team].direction in area_walls):
-                    only_move = [current_world.agents[my_team].direction]
-                    ret = self.get_next_nodes(current_world, only_move, True, move_list, depth)
-                    if ret[0] > best_answer[0]:
-                        best_answer = ret
-                else:
-                    if my_team == "Yellow":
-                        if blue_walls:
-                            ret = self.get_next_nodes(current_world, blue_walls, False, move_list, depth)
-                            if ret[0] > best_answer[0]:
-                                best_answer = ret
-                        if yellow_walls:
-                            ret = self.get_next_nodes(current_world, yellow_walls, False, move_list, depth)
-                            if ret[0] > best_answer[0]:
-                                best_answer = ret
-                    else:
-                        if yellow_walls:
-                            ret = self.get_next_nodes(current_world, yellow_walls, False, move_list, depth)
-                            if ret[0] > best_answer[0]:
-                                best_answer = ret
-                        if blue_walls:
-                            ret = self.get_next_nodes(current_world, blue_walls, False, move_list, depth)
-                            if ret[0] > best_answer[0]:
-                                best_answer = ret
-        return best_answer
 
     def update_world_and_agents(self):
         temp_our_agent = self.world.agents[self.my_side]
@@ -151,165 +183,12 @@ class AI(RealtimeAI):
         return start_world
 
     def client1(self):
-        #        my_team = self.my_side
 
         start_world = self.update_world_and_agents()
 
-        #        empty_neighbors = start_world.get_our_agent_empty_neighbors()
-        #        blue_walls = start_world.get_our_agent_blue_wall_neighbors()
-        #        yellow_walls = start_world.get_our_agent_yellow_wall_neighbors()
-        #        area_walls = start_world.get_our_agent_Area_wall_neighbors()
+        result = genetics(start_world, 50, 100, 4)
 
-        result = self.minimax(start_world, [], 0)
-        if not result[1][0][1]:
-            self.send_command(ChangeDirection(result[1][0][0]))
+        if not result[1]:
+            self.send_command(ChangeDirection(result[0]))
         else:
             self.send_command(ActivateWallBreaker())
-
-    """
-        if self.world.agents[self.my_side].wall_breaker_rem_time > 1:
-            # wall breaker is on
-            if my_team == "Yellow":
-                if blue_walls:
-                    self.send_command(ChangeDirection(random.choice(blue_walls)))
-                elif empty_neighbors:
-                    self.send_command(ChangeDirection(random.choice(empty_neighbors)))
-                elif yellow_walls:
-                    self.send_command(ChangeDirection(random.choice(yellow_walls)))
-                else:
-                    self.send_command(ChangeDirection(random.choice(list(EDirection))))
-            else:
-                if yellow_walls:
-                    self.send_command(ChangeDirection(random.choice(yellow_walls)))
-                elif empty_neighbors:
-                    self.send_command(ChangeDirection(random.choice(empty_neighbors)))
-                elif blue_walls:
-                    self.send_command(ChangeDirection(random.choice(blue_walls)))
-                else:
-                    self.send_command(ChangeDirection(random.choice(list(EDirection))))
-
-        else:
-            # wall breaker is off
-            if empty_neighbors:
-                self.send_command(ChangeDirection(random.choice(empty_neighbors)))
-            else:
-                if self.world.agents[my_team].wall_breaker_cooldown == 0 and not (
-                        self.world.agents[my_team].direction in area_walls):
-                    self.send_command(ActivateWallBreaker())
-                else:
-                    if my_team == "Yellow":
-                        if blue_walls:
-                            self.send_command(ChangeDirection(random.choice(blue_walls)))
-                        elif yellow_walls:
-                            self.send_command(ChangeDirection(random.choice(yellow_walls)))
-                        else:
-                            self.send_command(ChangeDirection(random.choice(list(EDirection))))
-                    else:
-                        if yellow_walls:
-                            self.send_command(ChangeDirection(random.choice(yellow_walls)))
-                        elif blue_walls:
-                            self.send_command(ChangeDirection(random.choice(blue_walls)))
-                        else:
-                            self.send_command(ChangeDirection(random.choice(list(EDirection))))
-                            
-
-    def _get_our_agent_empty_neighbors(self, world):
-        empty_neighbors = []
-
-        our_position = world.get_our_agent_position()
-
-        their_position = world.get_enemy_agent_position()
-
-        if our_position.x + 1 < len(world.board):
-            if world.board[our_position.y][our_position.x + 1] == ECell.Empty and \
-                    not (our_position.x + 1 == their_position.x and our_position.y == their_position.y):
-                empty_neighbors.append(EDirection.Right)
-        if our_position.x - 1 >= 0:
-            if world.board[our_position.y][our_position.x - 1] == ECell.Empty and \
-                    not (our_position.x - 1 == their_position.x and our_position.y == their_position.y):
-                empty_neighbors.append(EDirection.Left)
-        if our_position.y + 1 < len(world.board):
-            if world.board[our_position.y + 1][our_position.x] == ECell.Empty and \
-                    not (our_position.x == their_position.x and our_position.y + 1 == their_position.y):
-                empty_neighbors.append(EDirection.Down)
-        if our_position.y - 1 >= 0:
-            if world.board[our_position.y - 1][our_position.x] == ECell.Empty and \
-                    not (our_position.x == their_position.x and our_position.y - 1 == their_position.y):
-                empty_neighbors.append(EDirection.Up)
-        return empty_neighbors
-
-    def _get_our_agent_blue_wall_neighbors(self, world):
-        blue_walls = []
-        our_position = world.get_our_agent_position()
-
-        their_position = world.get_enemy_agent_position()
-
-        if our_position.x + 1 < len(world.board):
-            if world.board[our_position.y][our_position.x + 1] == ECell.BlueWall and \
-                    not (our_position.x + 1 == their_position.x and our_position.y == their_position.y):
-                blue_walls.append(EDirection.Right)
-        if our_position.x - 1 >= 0:
-            if world.board[our_position.y][our_position.x - 1] == ECell.BlueWall and \
-                    not (our_position.x - 1 == their_position.x and our_position.y == their_position.y):
-                blue_walls.append(EDirection.Left)
-        if our_position.y + 1 < len(world.board):
-            if world.board[our_position.y + 1][our_position.x] == ECell.BlueWall and \
-                    not (our_position.x == their_position.x and our_position.y + 1 == their_position.y):
-                blue_walls.append(EDirection.Down)
-        if our_position.y - 1 >= 0:
-            if world.board[our_position.y - 1][our_position.x] == ECell.BlueWall and \
-                    not (our_position.x == their_position.x and our_position.y - 1 == their_position.y):
-                blue_walls.append(EDirection.Up)
-        return blue_walls
-
-    def _get_our_agent_yellow_wall_neighbors(self, world):
-        yellow_walls = []
-
-        our_position = world.get_our_agent_position()
-
-        their_position = world.get_enemy_agent_position()
-
-        if our_position.x + 1 < len(world.board[0]):
-            if world.board[our_position.y][our_position.x + 1] == ECell.YellowWall and \
-                    not (our_position.x + 1 == their_position.x and our_position.y == their_position.y):
-                yellow_walls.append(EDirection.Right)
-        if our_position.x - 1 >= 0:
-            if world.board[our_position.y][our_position.x - 1] == ECell.YellowWall and \
-                    not (our_position.x - 1 == their_position.x and our_position.y == their_position.y):
-                yellow_walls.append(EDirection.Left)
-        if our_position.y + 1 < len(world.board):
-            if world.board[our_position.y + 1][our_position.x] == ECell.YellowWall and \
-                    not (our_position.x == their_position.x and our_position.y + 1 == their_position.y):
-                yellow_walls.append(EDirection.Down)
-        if our_position.y - 1 >= 0:
-            if world.board[our_position.y - 1][our_position.x] == ECell.YellowWall and \
-                    not (our_position.x == their_position.x and our_position.y - 1 == their_position.y):
-                yellow_walls.append(EDirection.Up)
-        return yellow_walls
-
-    def _get_our_agent_Area_wall_neighbors(self, world):
-        area_walls = []
-
-        our_position = world.get_our_agent_position()
-
-        their_position = world.get_enemy_agent_position()
-
-        if our_position.x + 1 < len(world.board[0]):
-            if world.board[our_position.y][our_position.x + 1] == ECell.AreaWall and \
-                    not (our_position.x + 1 == their_position.x and our_position.y == their_position.y):
-                area_walls.append(EDirection.Right)
-        if our_position.x - 1 >= 0:
-            if world.board[our_position.y][our_position.x - 1] == ECell.AreaWall and \
-                    not (our_position.x - 1 == their_position.x and our_position.y == their_position.y):
-                area_walls.append(EDirection.Left)
-        if our_position.y + 1 < len(world.board):
-            if world.board[our_position.y + 1][our_position.x] == ECell.AreaWall and \
-                    not (our_position.x == their_position.x and our_position.y + 1 == their_position.y):
-                area_walls.append(EDirection.Down)
-        if our_position.y - 1 >= 0:
-            if world.board[our_position.y - 1][our_position.x] == ECell.AreaWall and \
-                    not (our_position.x == their_position.x and our_position.y - 1 == their_position.y):
-                area_walls.append(EDirection.Up)
-        return area_walls
-
-    """
