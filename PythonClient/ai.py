@@ -69,7 +69,7 @@ def get_move_options(cur_world, side, enemy_side):
         new_pos = get_new_pos(cur_pos, get_d_cords(move_option))
         if invert_move(cur_agent.direction) != move_option and 0 <= new_pos[0] < len(cur_world.board[0]) and 0 <= \
                 new_pos[
-                    1] < len(cur_world.board) and new_pos != enemy_pos:
+                    1] < len(cur_world.board) and new_pos != enemy_pos and cur_world.board[new_pos[1]][new_pos[0]] != ECell.AreaWall:
             move_options.append([move_option, False])
         if cur_agent.direction != move_option and 0 <= new_pos[0] < len(cur_world.board[0]) and 0 <= new_pos[
             1] < len(
@@ -82,7 +82,7 @@ def fitness(move_list, start_world):
     best_score_dif = 10000
     n = len(move_list)
     for way in range(int(pow(4, n))):
-        this_score = 0
+        this_score = 10000
         other_move_list = []
         num = way
         for i in range(n):
@@ -142,7 +142,7 @@ def genetics(start_world, number_of_generations, number_of_chromosomes, predicti
             new_population.append(child)
         chromosomes = new_population
 
-    fitnessOfChromosomes = [fitness(chrom) for chrom in chromosomes]
+    fitnessOfChromosomes = [fitness(chrom, start_world) for chrom in chromosomes]
 
     bestChromosomes = chromosomes[
         indexOf(fitnessOfChromosomes, max(fitnessOfChromosomes))
@@ -186,7 +186,9 @@ class AI(RealtimeAI):
 
         start_world = self.update_world_and_agents()
 
-        result = genetics(start_world, 50, 100, 4)
+        result = genetics(start_world, 6, 10, 3)
+
+        print(result)
 
         if not result[1]:
             self.send_command(ChangeDirection(result[0]))
